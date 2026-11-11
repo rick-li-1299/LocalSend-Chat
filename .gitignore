@@ -22,3 +22,34 @@
 
 # Generated at build time by makepri (see support/scripts/compile_windows_msix_helper.ps1)
 /support/build/msix/content/resources.pri
+
+# This repository publishes only the final Windows chat application.
+/app/android/
+/app/ios/
+/app/linux/
+/app/macos/
+/app/web/
+/app/.mcp.json
+/cli/
+/server/
+/fastlane/
+/.gitmodules
+/CLAUDE.md
+/CODE_SIGNING.md
+/CONTRIBUTING.md
+/CHANGELOG.md
+/.github/*
+!/.github/workflows/
+/.github/workflows/*
+!/.github/workflows/build_windows_chat.yml
+/support/*
+!/support/scripts/
+!/support/build/
+/support/scripts/*
+!/support/scripts/compile_windows_chat.iss
+!/support/scripts/test_chat_update.py
+/support/build/*
+!/support/build/windows/
+/support/build/windows/*
+!/support/build/windows/x64/
+!/support/build/windows/inno/
