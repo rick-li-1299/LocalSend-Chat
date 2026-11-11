@@ -8,11 +8,13 @@ The Android ARM64 edition targets Android 8.1 (API 27) and later. Its applicatio
 
 Android releases use `android-vX.Y.Z` tags and do not replace the Windows latest-release update channel. Android installation and upgrades use the Android system installer; Windows' PowerShell update helper is never used on Android. Physical-device and cross-device LAN checks must be reported separately from build/signature validation.
 
-This is an unofficial Windows chat fork of [LocalSend](https://github.com/localsend/localsend), distributed under Apache 2.0 with the original copyright notices retained.
+This is an unofficial Windows / Android chat fork of [LocalSend](https://github.com/localsend/localsend), distributed under Apache 2.0 with the original copyright notices retained.
 
 ## Use
 
 Download either the EXE per-user installer or the ZIP portable application from [Releases](https://github.com/rick-li-1299/LocalSend-Chat/releases/latest). Keep the entire application directory together.
+
+For Android, download the APK from the [Android release](https://github.com/rick-li-1299/LocalSend-Chat/releases/tag/android-v1.0.0) and use the system package installer. Tap your own name to rename this device.
 
 Double-click your own name in the chat list to rename this device. Enter or clicking outside saves; Esc cancels. Empty names are rejected. Restart to apply the name to LAN discovery.
 
@@ -20,7 +22,7 @@ Chat supports device conversations, shared groups, text and file transfers, hist
 
 ## Updates and data
 
-The app checks this repository's latest stable Release at launch and every six hours. The update icon also checks manually. Click **Update now** to download the expected Windows ZIP, verify GitHub's SHA-256 digest and restart. Active transfers, web sharing and unsent drafts must finish first. Offline automatic checks fail quietly.
+The Windows app checks this repository's latest stable Release at launch and every six hours. The update icon also checks manually. Click **Update now** to download the expected Windows ZIP, verify GitHub's SHA-256 digest and restart. Active transfers, web sharing and unsent drafts must finish first. Offline automatic checks fail quietly.
 
 The update helper validates and stages application files before exit, keeps a backup of replaced files and attempts rollback on failure. It preserves portable `settings.json`, installed APPDATA settings and received files. Backups are adjacent `.chat-update-backup-*` directories; logs remain in temporary `localsend-chat-update-*` directories. Use a user-writable application directory.
 
