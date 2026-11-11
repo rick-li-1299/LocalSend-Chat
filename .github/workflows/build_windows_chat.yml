@@ -31,7 +31,7 @@ jobs:
       DART_SUPPRESS_ANALYTICS: 'true'
       CARGO_BUILD_JOBS: '2'
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Read pinned Flutter version
         id: flutter
         shell: pwsh
