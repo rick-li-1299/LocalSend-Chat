@@ -1,0 +1,142 @@
+name: Build and release LocalSend Chat
+
+'on':
+  workflow_dispatch:
+    inputs:
+      publish_release:
+        description: Publish a stable Chat release after all checks pass
+        type: boolean
+        default: false
+  push:
+    branches: [main, feat/chat-workspace-mvp]
+    tags: ['chat-v*']
+
+concurrency:
+  group: localsend-chat-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  windows-x64:
+    outputs:
+      chat_version: ${{ steps.chat.outputs.version }}
+    runs-on: windows-latest
+    timeout-minutes: 90
+    env:
+      CI: 'true'
+      BOT: 'true'
+      FLUTTER_SUPPRESS_ANALYTICS: 'true'
+      DART_SUPPRESS_ANALYTICS: 'true'
+      CARGO_BUILD_JOBS: '2'
+    steps:
+      - uses: actions/checkout@v6
+      - name: Read pinned Flutter version
+        id: flutter
+        shell: pwsh
+        run: |
+          $version = (Get-Content .fvmrc | ConvertFrom-Json).flutter
+          "version=$version" >> $env:GITHUB_OUTPUT
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ steps.flutter.outputs.version }}
+          channel: stable
+          cache: true
+      - name: Prepare pinned Rust toolchain
+        shell: pwsh
+        run: rustup show
+      - name: Read and verify Chat release version
+        id: chat
+        shell: pwsh
+        run: |
+          $source = Get-Content app/lib/util/chat_updater.dart -Raw
+          if ($source -notmatch "const chatVersion = '([0-9]+\.[0-9]+\.[0-9]+)';") { throw 'Missing Chat version.' }
+          $version = $Matches[1]
+          "version=$version" >> $env:GITHUB_OUTPUT
+          if ('${{ github.ref_type }}' -eq 'tag' -and '${{ github.ref_name }}' -ne "chat-v$version") { throw 'Release tag must match chatVersion.' }
+          if ('${{ inputs.publish_release }}' -eq 'true' -and '${{ github.ref_name }}' -ne 'main') { throw 'Manual stable releases must use main.' }
+      - name: Resolve locked workspace dependencies
+        working-directory: app
+        run: flutter pub get --enforce-lockfile
+      - name: Resolve Cargokit tool dependencies
+        working-directory: packages/localsend_isolates/rust_builder/cargokit/build_tool
+        run: flutter pub get
+      - name: Analyze app
+        working-directory: app
+        run: flutter analyze
+      - name: Test app
+        working-directory: app
+        run: flutter test --concurrency=2
+      - name: Test isolate layer
+        working-directory: packages/localsend_isolates
+        run: flutter test --concurrency=2
+      - name: Test Windows update staging, rollback and data preservation
+        run: python support/scripts/test_chat_update.py
+      - name: Build actual unsigned Windows app
+        working-directory: app
+        run: flutter build windows --release --no-pub
+      - name: Package portable ZIP and unsigned installer
+        shell: pwsh
+        run: |
+          $payload = Join-Path $env:RUNNER_TEMP 'localsend-chat-payload'
+          $dist = Join-Path $env:GITHUB_WORKSPACE 'dist'
+          New-Item -ItemType Directory -Force $payload, $dist | Out-Null
+          Copy-Item 'app/build/windows/x64/runner/Release/*' $payload -Recurse
+          if (-not (Test-Path "$payload/localsend_app.exe")) { throw 'Windows executable was not built.' }
+          Copy-Item 'support/build/windows/x64/*.dll' $payload
+          Copy-Item 'app/assets/packaging/logo.ico' $payload
+          Copy-Item LICENSE "$payload/LICENSE.txt"
+          Copy-Item README_CHAT.md $payload
+          [IO.File]::WriteAllText("$payload/settings.json", '{}', [Text.UTF8Encoding]::new($false))
+          Compress-Archive "$payload/*" "$dist/LocalSend-Chat-windows-x64-unsigned.zip"
+          $iscc = "${env:ProgramFiles(x86)}/Inno Setup 6/ISCC.exe"
+          if (-not (Test-Path $iscc)) { throw 'Inno Setup 6 is required to build the installer.' }
+          & $iscc "/DPayloadDir=$payload" "/DResultDir=$dist" support/scripts/compile_windows_chat.iss
+          if ($LASTEXITCODE -ne 0) { throw 'Inno Setup failed.' }
+          if (-not (Test-Path "$dist/LocalSend-Chat-windows-x64-unsigned.exe")) { throw 'Installer was not created.' }
+          Get-ChildItem $dist -File | ForEach-Object {
+            $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $($_.Name)"
+          } | Set-Content "$dist/SHA256SUMS.txt"
+          @{
+            source_commit = '${{ github.sha }}'
+            repository = '${{ github.repository }}'
+            workflow_run = 'https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}'
+            signed = $false
+            platform = 'windows-x64'
+          } | ConvertTo-Json | Set-Content "$dist/build-manifest.json"
+      - name: Upload verified build outputs
+        uses: actions/upload-artifact@v6
+        with:
+          name: localsend-chat-windows-x64-${{ github.sha }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/chat-v') || inputs.publish_release == true
+    needs: windows-x64
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v6
+        with:
+          name: localsend-chat-windows-x64-${{ github.sha }}
+          path: dist
+      - name: Publish tested build as a GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          CHAT_TAG: chat-v${{ needs.windows-x64.outputs.chat_version }}
+          CHAT_COMMIT: ${{ github.sha }}
+        run: |
+          cat > notes.md <<'NOTES'
+          LocalSend Chat for Windows x64 (unofficial LocalSend fork).
+
+          Download the ZIP for portable use, or the EXE installer for a per-user installation.
+          Automatic update checks use this repository's latest stable Release. Click Update now to download, verify and restart. Settings and chat history are preserved.
+          First installation from a version without the updater requires a manual download. Keep your existing settings.json when upgrading a portable copy.
+          NOTES
+          gh release create "$CHAT_TAG" dist/* --repo "$GH_REPO" --target "$CHAT_COMMIT" --title "LocalSend Chat $CHAT_TAG" --notes-file notes.md

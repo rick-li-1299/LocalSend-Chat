@@ -1,0 +1,63 @@
+name: Import complete LocalSend Chat source
+on:
+  push:
+    branches: [setup/source-import-20261111]
+    paths: ['.source-import/**']
+permissions:
+  contents: write
+  actions: write
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - name: Verify and restore reviewed source archive
+        shell: python
+        run: |
+          import hashlib, io, json, pathlib, stat, zipfile
+          root = pathlib.Path.cwd()
+          parts = sorted((root / '.source-import').glob('part-*'))
+          assert len(parts) == 12, 'Incomplete source import'
+          archive = b''.join(p.read_bytes() for p in parts)
+          assert hashlib.sha256(archive).hexdigest() == '591a83aa52cae9124267f7b7b7645e394c736066469ad711db020b700c842377'
+          with zipfile.ZipFile(io.BytesIO(archive)) as source:
+              for info in source.infolist():
+                  assert info.filename.startswith('LocalSend-Chat/')
+                  relative = pathlib.PurePosixPath(info.filename[len('LocalSend-Chat/'):])
+                  assert not relative.is_absolute() and '..' not in relative.parts
+                  if info.is_dir():
+                      continue
+                  target = root.joinpath(*relative.parts)
+                  assert target.resolve().is_relative_to(root)
+                  content = source.read(info)
+                  if str(relative).startswith('.github/workflows/'):
+                      assert target.is_file() and target.read_bytes() == content, f'Workflow mismatch: {relative}'
+                      continue
+                  target.parent.mkdir(parents=True, exist_ok=True)
+                  target.write_bytes(content)
+                  if info.external_attr >> 16 & stat.S_IXUSR:
+                      target.chmod(0o755)
+          for part in parts:
+              part.unlink()
+          (root / '.source-import').rmdir()
+          pathlib.Path('dispatch.json').write_text(json.dumps({'ref': 'main', 'inputs': {'publish_release': True}}))
+      - name: Commit complete project source
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add --all
+          git reset -- dispatch.json
+          git commit -m 'Import complete reviewed LocalSend Chat source'
+          git push origin HEAD:main
+      - name: Start checked Windows release build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for attempt in 1 2 3 4 5; do
+            if gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/build_windows_chat.yml/dispatches" --input dispatch.json; then
+              exit 0
+            fi
+            sleep 10
+          done
+          exit 1
