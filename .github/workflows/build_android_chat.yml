@@ -26,6 +26,9 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.41.9'
@@ -55,6 +58,9 @@ jobs:
           tools="$ANDROID_HOME/build-tools/36.0.0"
           "$tools/zipalign" -P 16 -f 4 app/build/app/outputs/flutter-apk/app-release.apk unsigned/unsigned.apk
           "$tools/aapt" dump badging unsigned/unsigned.apk | sed -n '1,8p'
+          "$tools/aapt" dump badging unsigned/unsigned.apk > unsigned/badging.txt
+          grep "^package: name='org.localsendchat.app'" unsigned/badging.txt
+          grep "^sdkVersion:'27'" unsigned/badging.txt
           python support/scripts/android_apk_signing.py prepare --apk unsigned/unsigned.apk --certificate support/android/release-certificate.pem --request unsigned/signing-request.json --source-commit "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID"
       - uses: actions/upload-artifact@v6
         with:

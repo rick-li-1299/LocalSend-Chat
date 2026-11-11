@@ -72,9 +72,12 @@ if __name__ == '__main__':
     args = parser.parse_args()
     key, pem = load_key(args.key_dir)
     certificate = x509.load_pem_x509_certificate(pem)
+    assert certificate.public_key().public_numbers() == key.public_key().public_numbers(), 'Signing identity mismatch'
     der = certificate.public_bytes(serialization.Encoding.DER)
     fingerprint = hashlib.sha256(der).hexdigest()
     if args.command == 'init':
+        if args.certificate.exists() and args.certificate.read_bytes() != pem:
+            raise ValueError('Existing release certificate differs; restore the original signing-key directory rather than replacing its identity.')
         args.certificate.parent.mkdir(parents=True, exist_ok=True)
         args.certificate.write_bytes(pem)
         print('Android signing identity ready. Public certificate SHA-256: ' + fingerprint)
