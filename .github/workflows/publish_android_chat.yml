@@ -16,6 +16,9 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - name: Prepare Android verification tools
+        run: sdkmanager 'build-tools;36.0.0'
       - name: Read approved request provenance
         id: request
         shell: python

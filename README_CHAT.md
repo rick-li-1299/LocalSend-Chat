@@ -1,4 +1,4 @@
-# LocalSend Chat — Windows
+# LocalSend Chat — Windows / Android
 
 ## Android edition
 
@@ -38,6 +38,6 @@ Test the update helper with `python support/scripts/test_chat_update.py`. Packag
 
 The sole Windows workflow analyzes, tests, builds and packages the application. Increase `chatVersion` in `app/lib/util/chat_updater.dart`, then push the matching `chat-vX.Y.Z` tag. Alternatively, run the workflow on `main` with `publish_release` enabled. It publishes one unsigned ZIP, one unsigned EXE installer, checksums and a source-build manifest after checks pass. Chat versions are independent of the upstream application version.
 
-Only the final Windows application and required source are maintained. Other application platform runners, CLI/signaling-server projects, old release workflows and one-time source-import files are excluded from the current source tree. Existing historical Git commits remain normal version history; no old local application ZIPs or toolchain caches were uploaded.
+Only the final Windows and Android applications and required source are maintained. Other application platform runners, CLI/signaling-server projects, old release workflows and one-time source-import files are excluded from the current source tree. Existing historical Git commits remain normal version history; no old local application ZIPs or toolchain caches were uploaded.
 
 See [validation notes](CHAT_VALIDATION.md) for the scope of checks. A cloud build is not proof of physical two-device LAN testing.
