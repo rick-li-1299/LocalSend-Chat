@@ -14,7 +14,7 @@ jobs:
       version: ${{ steps.get_version.outputs.version }}
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Get version from AppImage recipe
         id: get_version
@@ -31,7 +31,7 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install dependencies
         run: |
