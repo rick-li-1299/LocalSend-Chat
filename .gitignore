@@ -23,8 +23,7 @@
 # Generated at build time by makepri (see support/scripts/compile_windows_msix_helper.ps1)
 /support/build/msix/content/resources.pri
 
-# This repository publishes only the final Windows chat application.
-/app/android/
+# This repository publishes only the final Windows and Android chat applications.
 /app/ios/
 /app/linux/
 /app/macos/
@@ -42,12 +41,18 @@
 !/.github/workflows/
 /.github/workflows/*
 !/.github/workflows/build_windows_chat.yml
+!/.github/workflows/build_android_chat.yml
+!/.github/workflows/publish_android_chat.yml
 /support/*
 !/support/scripts/
 !/support/build/
 /support/scripts/*
 !/support/scripts/compile_windows_chat.iss
 !/support/scripts/test_chat_update.py
+!/support/scripts/android_apk_signing.py
+!/support/scripts/sign_android_request.py
+!/support/scripts/test_android_apk_signing.py
+!/support/android/
 /support/build/*
 !/support/build/windows/
 /support/build/windows/*

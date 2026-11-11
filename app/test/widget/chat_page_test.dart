@@ -123,7 +123,7 @@ void main() {
         ],
         child: MaterialApp(
           theme: ThemeData(
-            platform: platform,
+            platform: platform ?? TargetPlatform.windows,
             fontFamily: fontDirectory.isEmpty ? null : 'Roboto',
             colorSchemeSeed: Colors.teal,
             brightness: dark ? Brightness.dark : Brightness.light,
@@ -138,6 +138,36 @@ void main() {
     await tester.pumpAndSettle();
     return store;
   }
+
+  testWidgets('Android phone supports tap rename, groups, multiline composition and system back', (tester) async {
+    tester.view.physicalSize = const Size(390, 760);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final persistence = _Persistence();
+    when(persistence.setAlias(any)).thenAnswer((_) async {});
+    await pump(tester, platform: TargetPlatform.android, persistenceService: persistence);
+    expect(find.byTooltip('New group'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('own-name')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const ValueKey('own-name-input')), 'My phone');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+    verify(persistence.setAlias('My phone')).called(1);
+    await tester.tap(find.text('Studio laptop'));
+    await tester.pumpAndSettle();
+    final input = find.byKey(const ValueKey('chat-composer'));
+    expect(tester.widget<TextField>(input).textInputAction, TextInputAction.newline);
+    await tester.enterText(input, '第一行\n第二行');
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.text('Studio laptop'), findsOneWidget);
+    expect(find.byKey(const ValueKey('chat-composer')), findsNothing);
+    await tester.tap(find.text('Studio laptop'));
+    await tester.pumpAndSettle();
+    expect(tester.widget<TextField>(find.byKey(const ValueKey('chat-composer'))).controller!.text, '第一行\n第二行');
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('double-click own name saves a trimmed name with Enter', (tester) async {
     final persistence = _Persistence();

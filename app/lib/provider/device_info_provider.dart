@@ -23,7 +23,9 @@ final deviceInfoProvider = ViewProvider<DeviceInfoResult>(
 
     return DeviceInfoResult(
       deviceType: deviceType ?? rawInfo.deviceType,
-      deviceModel: defaultTargetPlatform == TargetPlatform.windows ? '${model ?? ''}$chatAdvancedDeviceMarker$chatGroupDeviceMarker' : model,
+      deviceModel: const [TargetPlatform.windows, TargetPlatform.android].contains(defaultTargetPlatform)
+          ? '${model ?? ''}$chatAdvancedDeviceMarker$chatGroupDeviceMarker'
+          : model,
       androidSdkInt: rawInfo.androidSdkInt,
     );
   },

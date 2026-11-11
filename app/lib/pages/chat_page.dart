@@ -19,6 +19,7 @@ import 'package:localsend_app/provider/settings_provider.dart';
 import 'package:localsend_app/util/chat_transfer_adapter.dart';
 import 'package:localsend_app/util/chat_updater.dart';
 import 'package:localsend_app/util/native/cross_file_converters.dart';
+import 'package:localsend_app/util/native/file_picker.dart';
 import 'package:localsend_app/util/native/open_file.dart';
 import 'package:localsend_app/util/native/open_folder.dart';
 import 'package:localsend_isolates/model/device.dart';
@@ -272,13 +273,16 @@ class _ChatPageState extends State<ChatPage> with Refena {
       );
     }
     return Tooltip(
-      message: s('Double-click to rename this device', '双击修改本机名称'),
+      message: Theme.of(context).platform == TargetPlatform.android
+          ? s('Tap to rename this device', '点击修改本机名称')
+          : s('Double-click to rename this device', '双击修改本机名称'),
       child: MouseRegion(
         cursor: SystemMouseCursors.text,
         child: GestureDetector(
           key: const ValueKey('own-name'),
           behavior: HitTestBehavior.opaque,
-          onDoubleTap: _editName,
+          onDoubleTap: Theme.of(context).platform == TargetPlatform.android ? null : _editName,
+          onTap: Theme.of(context).platform == TargetPlatform.android ? _editName : null,
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 6),
             child: Text(alias, maxLines: 1, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.bodySmall),
@@ -1434,7 +1438,7 @@ class _ChatPageState extends State<ChatPage> with Refena {
                                   ),
                                 ),
                               ),
-                              if (Theme.of(context).platform == TargetPlatform.windows)
+                              if (const [TargetPlatform.windows, TargetPlatform.android].contains(Theme.of(context).platform))
                                 IconButton(
                                   tooltip: s('New group', '新建群聊'),
                                   onPressed: _busy || _sending ? null : _createGroup,
@@ -1811,12 +1815,18 @@ class _ChatPageState extends State<ChatPage> with Refena {
         ),
       ),
     );
-    return CallbackShortcuts(
-      bindings: {
-        if (selected != null) const SingleActivator(LogicalKeyboardKey.keyF, control: true): _openHistorySearch,
-        if (_historySearchOpen) const SingleActivator(LogicalKeyboardKey.escape): _closeHistorySearch,
+    return PopScope(
+      canPop: selected == null || wideWindow,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) _selectPeer(null);
       },
-      child: workspace,
+      child: CallbackShortcuts(
+        bindings: {
+          if (selected != null) const SingleActivator(LogicalKeyboardKey.keyF, control: true): _openHistorySearch,
+          if (_historySearchOpen) const SingleActivator(LogicalKeyboardKey.escape): _closeHistorySearch,
+        },
+        child: workspace,
+      ),
     );
   }
 
@@ -2012,6 +2022,10 @@ class _ChatPageState extends State<ChatPage> with Refena {
                 onPressed: _busy
                     ? null
                     : () => _stage(() async {
+                        if (Theme.of(context).platform == TargetPlatform.android) {
+                          await ref.global.dispatchAsync(PickFileAction(option: FilePickerOption.file, context: context));
+                          return;
+                        }
                         final files = await picker.openFiles();
                         await ref
                             .redux(selectedSendingFilesProvider)
@@ -2024,6 +2038,10 @@ class _ChatPageState extends State<ChatPage> with Refena {
                 onPressed: _busy
                     ? null
                     : () => _stage(() async {
+                        if (Theme.of(context).platform == TargetPlatform.android) {
+                          await ref.global.dispatchAsync(PickFileAction(option: FilePickerOption.folder, context: context));
+                          return;
+                        }
                         final directory = await picker.getDirectoryPath();
                         if (directory != null) await ref.redux(selectedSendingFilesProvider).dispatchAsync(AddDirectoryAction(directory));
                       }),
@@ -2049,6 +2067,7 @@ class _ChatPageState extends State<ChatPage> with Refena {
           ),
           Focus(
             onKeyEvent: (_, event) {
+              if (Theme.of(context).platform == TargetPlatform.android) return KeyEventResult.ignored;
               if (event is! KeyDownEvent ||
                   event.logicalKey != LogicalKeyboardKey.enter ||
                   HardwareKeyboard.instance.isShiftPressed ||
@@ -2064,6 +2083,8 @@ class _ChatPageState extends State<ChatPage> with Refena {
               focusNode: _composerFocus,
               minLines: 2,
               maxLines: 4,
+              keyboardType: TextInputType.multiline,
+              textInputAction: Theme.of(context).platform == TargetPlatform.android ? TextInputAction.newline : null,
               enabled: !_busy,
               onChanged: group == null || group.members.length < 2
                   ? null
@@ -2096,6 +2117,8 @@ class _ChatPageState extends State<ChatPage> with Refena {
                       ? s('Working…', '处理中…')
                       : _sending
                       ? s('Sending…', '正在发送…')
+                      : Theme.of(context).platform == TargetPlatform.android
+                      ? s('Tap Send to send your message', '点击发送按钮发送消息')
                       : s('Enter to send · Shift+Enter for a new line', 'Enter 发送 · Shift+Enter 换行'),
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.labelSmall,

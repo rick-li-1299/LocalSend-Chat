@@ -137,4 +137,4 @@ Slang, source files in `app/assets/i18n/` (`<locale>.json` plus `_missing_transl
 
 ## Release notes
 
-This fork maintains the Windows chat application only. `app/pubspec.yaml` retains its upstream application version, matching `MyAppVersion` in `support/scripts/compile_windows_chat.iss`. The independent Chat release version is `chatVersion` in `app/lib/util/chat_updater.dart`; it must match the `chat-vX.Y.Z` release tag. The Windows workflow is `.github/workflows/build_windows_chat.yml`. Do not add obsolete platform runners, toolchain caches or old application bundles to releases.
+This fork maintains the Windows and Android chat applications. `app/pubspec.yaml` retains its upstream application version, matching `MyAppVersion` in `support/scripts/compile_windows_chat.iss`. The independent Chat release version is `chatVersion` in `app/lib/util/chat_updater.dart`; it must match the `chat-vX.Y.Z` release tag. The Windows workflow is `.github/workflows/build_windows_chat.yml`. Do not add obsolete platform runners, toolchain caches or old application bundles to releases.

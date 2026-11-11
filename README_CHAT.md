@@ -1,5 +1,13 @@
 # LocalSend Chat — Windows
 
+## Android edition
+
+The Android ARM64 edition targets Android 8.1 (API 27) and later. Its application ID is `org.localsendchat.app`, independent of official LocalSend. It opens the chat workspace directly, uses Android SAF file/directory selection, supports tap-to-rename and system back navigation, and advertises group-chat capabilities to the Windows edition.
+
+`.github/workflows/build_android_chat.yml` builds an unsigned, aligned release APK on GitHub. `support/scripts/android_apk_signing.py` prepares a small request bound to its exact APK hash, source commit and public certificate. Run `support/scripts/sign_android_request.py sign` on the maintainer's Windows computer with the retained DPAPI-protected private key directory. Publish the resulting public response on `android/signature`; the publishing workflow verifies provenance, assembles the signature and runs Android SDK `apksigner verify` and `zipalign` before releasing the APK. Private signing keys must never be committed, logged or uploaded. Keep the signing directory to allow future in-place upgrades.
+
+Android releases use `android-vX.Y.Z` tags and do not replace the Windows latest-release update channel. Android installation and upgrades use the Android system installer; Windows' PowerShell update helper is never used on Android. Physical-device and cross-device LAN checks must be reported separately from build/signature validation.
+
 This is an unofficial Windows chat fork of [LocalSend](https://github.com/localsend/localsend), distributed under Apache 2.0 with the original copyright notices retained.
 
 ## Use

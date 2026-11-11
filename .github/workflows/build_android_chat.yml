@@ -1,0 +1,74 @@
+name: Build Android Chat APK
+on:
+  workflow_dispatch:
+  push:
+    branches: [android/build]
+permissions:
+  contents: write
+concurrency:
+  group: android-chat-build
+  cancel-in-progress: true
+jobs:
+  android-arm64:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      CI: 'true'
+      BOT: 'true'
+      FLUTTER_SUPPRESS_ANALYTICS: 'true'
+      DART_SUPPRESS_ANALYTICS: 'true'
+      CARGO_BUILD_JOBS: '2'
+      RUSTFLAGS: '-C link-arg=-Wl,-z,max-page-size=16384'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.9'
+          channel: stable
+          cache: true
+      - name: Resolve pinned Dart and Rust dependencies
+        run: |
+          rustup show
+          rustup target add aarch64-linux-android
+          sdkmanager 'build-tools;36.0.0' 'platforms;android-36'
+          flutter pub get --enforce-lockfile
+          cd packages/localsend_isolates/rust_builder/cargokit/build_tool
+          flutter pub get
+      - name: Analyze and test mobile chat layout
+        working-directory: app
+        run: |
+          flutter analyze
+          flutter test --concurrency=2
+      - name: Build unsigned release APK (ARM64, Android 8.1+)
+        working-directory: app
+        run: flutter build apk --release --no-pub --target-platform android-arm64 --build-name=1.0.0 --build-number=10000
+      - name: Align APK and prepare public signing request
+        run: |
+          python -m pip install 'cryptography>=46,<47'
+          python support/scripts/test_android_apk_signing.py
+          mkdir -p unsigned
+          tools="$ANDROID_HOME/build-tools/36.0.0"
+          "$tools/zipalign" -P 16 -f 4 app/build/app/outputs/flutter-apk/app-release.apk unsigned/unsigned.apk
+          "$tools/aapt" dump badging unsigned/unsigned.apk | sed -n '1,8p'
+          python support/scripts/android_apk_signing.py prepare --apk unsigned/unsigned.apk --certificate support/android/release-certificate.pem --request unsigned/signing-request.json --source-commit "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID"
+      - uses: actions/upload-artifact@v6
+        with:
+          name: unsigned-android-arm64-${{ github.sha }}
+          path: unsigned/*
+          if-no-files-found: error
+          retention-days: 14
+      - name: Publish small signing request (contains no private key)
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git switch -c android/signing-request
+          mkdir -p .android-signing
+          cp unsigned/signing-request.json .android-signing/request.json
+          git add .android-signing/request.json
+          git commit -m 'Prepare Android APK signing request'
+          git fetch origin refs/heads/android/signing-request:refs/remotes/origin/android/signing-request || true
+          git push --force-with-lease origin HEAD:android/signing-request

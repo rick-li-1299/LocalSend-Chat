@@ -73,6 +73,19 @@ class _HomePageState extends State<HomePage> with Refena {
     Translations.of(context); // rebuild on locale change
     final vm = context.watch(homePageControllerProvider);
 
+    if (checkPlatform([TargetPlatform.android])) {
+      return ChatPage(
+        onSettings: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => Scaffold(
+              appBar: AppBar(title: Text(t.settingsTab.title)),
+              body: const SettingsTab(),
+            ),
+          ),
+        ),
+      );
+    }
+
     if (checkPlatformIsDesktop()) {
       return Stack(
         children: [
